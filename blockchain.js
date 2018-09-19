@@ -168,7 +168,7 @@ class Blockchain {
                     
                     // decode story, if present
                     if (blockObject.body !== undefined && blockObject.body.star !== undefined) {
-                        blockObject.body.star.story = Buffer.from(blockObject.body.star.story, 'hex').toString('utf8');
+                        blockObject.body.star.storyDecoded = Buffer.from(blockObject.body.star.story, 'hex').toString('utf8');
                     }
                     
                     // done, return result

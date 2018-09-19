@@ -296,6 +296,17 @@ server.route({
     }
 });
 
+// add test route
+server.route({
+    method  :   'GET',
+    path    :   '/test',
+    handler :   async function(request,h) {
+        
+        const t1 = new ValidationRequest(false, 'address', 0, "", 0);
+        return JSON.stringify(t1);
+    }
+});
+
 // start the server
 async function start() {
 

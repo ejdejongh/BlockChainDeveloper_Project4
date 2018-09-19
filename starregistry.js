@@ -58,22 +58,31 @@ class StarRegistry {
             // debug
             console.log("StarRegistry.requestValidation(" + address + ") - RECORD FOUND");
 
-            // helper var
+            // check if the request is still valid
             const time = new Date().getTime().toString().slice(0,-3);
+            const validuntil = parseInt(validationRequest.status.requestTimeStamp,10) + parseInt(validationRequest.status.validationWindow,10);
+            const remaining = validuntil - time;
                         
-            // update requested timestamp, validation window
-            validationRequest.requestTimeStamp = time;
-            validationRequest.validationWindow = 300;
+            //console.log('time=' + time);
+            //console.log('vaun=' + validuntil);
+            //console.log('remaining=' + remaining);
+            
+            // update validation window
+            validationRequest.status.validationWindow = remaining;
             
             // debug
-            console.log("validationRequest.requestTimeStamp UPDATED=" + validationRequest.requestTimeStamp);
-            console.log("validationRequest.validationWindow UPDATED=" + validationRequest.validationWindow);
+            console.log("validationRequest.status.validationWindow UPDATED=" + validationRequest.status.validationWindow);
             
             // save in level db
-            addLevelDBData(validationRequest.address, JSON.stringify(validationRequest));
+            addLevelDBData(validationRequest.status.address, JSON.stringify(validationRequest));
             
             // done, return result
-            return validationRequest;
+            return {
+                address             :   validationRequest.status.address,
+                requestTimeStamp    :   validationRequest.status.requestTimeStamp,
+                message             :   validationRequest.status.message,
+                validationWindow    :   validationRequest.status.validationWindow
+            };
         }
         // no record found
         catch (error) {
@@ -82,10 +91,15 @@ class StarRegistry {
             const validationRequest = await this.addValidationRequest(address);
             
             // debug
-            console.log("StarRegistry.requestValidation(" + address + ") - RECORD INSERTED WITH MESSAGE="  + validationRequest.message);
+            console.log("StarRegistry.requestValidation(" + address + ") - RECORD INSERTED WITH MESSAGE="  + validationRequest.status.message);
             
             // done, return result
-            return validationRequest;
+            return {
+                address             :   validationRequest.status.address,
+                requestTimeStamp    :   validationRequest.status.requestTimeStamp,
+                message             :   validationRequest.status.message,
+                validationWindow    :   validationRequest.status.validationWindow
+            };
         }
     }
 
@@ -103,21 +117,21 @@ class StarRegistry {
             
             // check if the request is still valid
             const time = new Date().getTime().toString().slice(0,-3);
-            const validuntil = parseInt(validationRequest.requestTimeStamp,10) + parseInt(validationRequest.validationWindow,10);
+            const validuntil = parseInt(validationRequest.status.requestTimeStamp,10) + parseInt(validationRequest.status.validationWindow,10);
             const remaining = validuntil - time;
             
             // update validation window
-            validationRequest.validationWindow = remaining;
+            validationRequest.status.validationWindow = remaining;
             
             // debug
-            //console.log('validuntil = validationRequest.requestTimeStamp + validationRequest.validationWindow=' + validuntil);
+            //console.log('validuntil = validationRequest.status.requestTimeStamp + validationRequest.status.validationWindow=' + validuntil);
             //console.log('remaining = validuntil - time =' + validuntil + ' - ' + time + '=' + remaining);
                         
             // if the validation request is no longer valid
             if (remaining < 0) {
 
                 // set signature, update status
-                validationRequest.messageSignature = "";
+                validationRequest.status.messageSignature = "";
                 validationRequest.registerStar = false;
 
                 // debug
@@ -133,17 +147,17 @@ class StarRegistry {
             else {
                 
                 // verify signature
-                const isValid = bitcoinMessage.verify(validationRequest.message, address, signature);
+                const isValid = bitcoinMessage.verify(validationRequest.status.message, address, signature);
 
                 // debug
-                console.log("bitcoinMessage.verify(" + validationRequest.message + ", " + address + ", " + signature + ")=" + isValid);
+                console.log("bitcoinMessage.verify(" + validationRequest.status.message + ", " + address + ", " + signature + ")=" + isValid);
 
                 // set signature, update status
-                validationRequest.messageSignature = isValid ? 'valid' : 'invalid';
-                validationRequest.registerStar = true;
+                validationRequest.status.messageSignature = isValid ? 'valid' : 'invalid';
+                validationRequest.registerStar = isValid;
 
                 // save in level db
-                addLevelDBData(validationRequest.address, JSON.stringify(validationRequest));
+                addLevelDBData(validationRequest.status.address, JSON.stringify(validationRequest));
 
                 // done, return result
                 return validationRequest;
@@ -156,7 +170,7 @@ class StarRegistry {
             console.log("StarRegistry.validateMessageSignature(" + address + "," + signature + ") - NO RECORD FOUND");
             
             // done, return result
-            return new ValidationRequest(address, 0, "", 0);
+            return new ValidationRequest(false, address, 0, "", 0);
         }
     }
     
@@ -174,18 +188,18 @@ class StarRegistry {
             
             // check if the request is still valid
             const time = new Date().getTime().toString().slice(0,-3);
-            const validuntil = parseInt(validationRequest.requestTimeStamp,10) + parseInt(validationRequest.validationWindow,10);
+            const validuntil = parseInt(validationRequest.status.requestTimeStamp,10) + parseInt(validationRequest.status.validationWindow,10);
             const remaining = validuntil - time;
             
             // update validation window
-            validationRequest.validationWindow = remaining;
+            validationRequest.status.validationWindow = remaining;
             
             // debug
-            //console.log('validuntil = validationRequest.requestTimeStamp + validationRequest.validationWindow=' + validuntil);
+            //console.log('validuntil = validationRequest.status.requestTimeStamp + validationRequest.status.validationWindow=' + validuntil);
             //console.log('remaining = validuntil - time =' + validuntil + ' - ' + time + '=' + remaining);
 
             // no matter what, the validation request will no longer be relevant
-            //deleteLevelDBData(address);
+            deleteLevelDBData(address);
                 
             // if the validation request is no longer valid
             if (remaining < 0) {
@@ -226,7 +240,7 @@ class StarRegistry {
             console.log("StarRegistry.registerStar(" + address + ") - NO RECORD FOUND");
             
             // done, return result
-            return new ValidationRequest(address, 0, "", 0);
+            return new ValidationRequest(false, address, 0, "", 0);
         }
     }
     
@@ -264,11 +278,11 @@ class StarRegistry {
         const time = new Date().getTime().toString().slice(0,-3);
     
         // new object
-        const newValidationRequest = new ValidationRequest(address, time, address + ":" + time + ":starRegistry", 300);
+        const newValidationRequest = new ValidationRequest(false, address, time, address + ":" + time + ":starRegistry", 300);
 
         // save in level db
-        addLevelDBData(newValidationRequest.address, JSON.stringify(newValidationRequest));
-                    
+        addLevelDBData(newValidationRequest.status.address, JSON.stringify(newValidationRequest));
+        
         // return new validation request
         return newValidationRequest;
     }

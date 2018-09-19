@@ -5,13 +5,15 @@
 class ValidationRequest {
 
     // constructor
-	constructor(address, requestTimeStamp, message, validationWindow) {
-         this.address = address,
-         this.requestTimeStamp = requestTimeStamp,
-         this.message = message,
-         this.validationWindow = validationWindow,
-         this.messageSignature = "",
-         this.registerStar = false
+	constructor(registerStar, address, requestTimeStamp, message, validationWindow) {
+        this.registerStar = registerStar,
+        this.status = {
+             address: address,
+             requestTimeStamp: requestTimeStamp,
+             message: message,
+             validationWindow: validationWindow,
+             messageSignature: ""
+        }
     }
 }
 
